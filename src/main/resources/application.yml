@@ -1,1 +1,13 @@
+server:
+  port: 9090
 
+
+upload:
+  maxFileSize: 552428800
+  path: "D:/tmp/"
+
+spring:
+  http:
+    multipart:
+      maxFileSize: 100Mb
+      maxRequestSize: 100Mb
