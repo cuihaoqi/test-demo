@@ -1,6 +1,7 @@
 package com.cuihq.testdemo.action;
 
 import com.alibaba.fastjson.JSON;
+import com.cuihq.testdemo.entity.FileInfoPo;
 import com.cuihq.testdemo.entity.UploadResultVO;
 import com.cuihq.testdemo.service.UploadService;
 import com.cuihq.testdemo.service.Uploader;
@@ -20,9 +21,9 @@ public class TestController{
 	private UploadService uploadService;
 
 	@RequestMapping(path = "/upload", method = RequestMethod.POST)
-	public void upload(HttpServletRequest request, HttpServletResponse response){
+	public void upload(HttpServletRequest request, HttpServletResponse response, FileInfoPo fileInfoPo){
 		try{
-			uploadService.post(request, new Uploader.UploadListener() {
+			uploadService.post(request,fileInfoPo, new Uploader.UploadListener() {
 				@Override
 				public void callback(Integer status, String absolutePath, String fileName, String modulFilePath) {
 					this.success(response,status,absolutePath,fileName,modulFilePath);

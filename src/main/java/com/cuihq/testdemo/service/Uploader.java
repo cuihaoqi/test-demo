@@ -1,5 +1,6 @@
 package com.cuihq.testdemo.service;
 
+import com.cuihq.testdemo.entity.FileInfoPo;
 import com.cuihq.testdemo.entity.UploaderStatusEnum;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.FilenameUtils;
@@ -45,14 +46,21 @@ public class Uploader {
 	 * @param
 	 * @return
 	 * */
-	public void post(HttpServletRequest req, UploadListener listener) throws IllegalStateException, IOException {
+	public void post(HttpServletRequest req, FileInfoPo fileInfoPo, UploadListener listener) throws IllegalStateException, IOException {
 
-		int chunkNumber = this.getParamInt(req, "chunkNumber", 0);
+/*		int chunkNumber = this.getParamInt(req, "chunkNumber", 0);
 		int chunkSize = this.getParamInt(req, "chunkSize", 0);
 		int totalSize = this.getParamInt(req, "totalSize", 0);
 		String identifier = this.getParamString(req, "identifier", "");
 		String filename = this.getParamString(req, "filename", "");
-		String modulFilePath = this.getParamString(req, "modulFilePath", "");
+		String modulFilePath = this.getParamString(req, "modulFilePath", "");*/
+
+		Integer chunkNumber = fileInfoPo.getChunkNumber()==null?0:fileInfoPo.getChunkNumber();
+		Integer chunkSize = fileInfoPo.getChunkSize()==null?0:fileInfoPo.getChunkSize();
+		Integer totalSize = fileInfoPo.getTotalSize()==null?0:fileInfoPo.getTotalSize();
+		String identifier = fileInfoPo.getIdentifier()==null?"":fileInfoPo.getIdentifier();
+		String filename = fileInfoPo.getFilename()==null?"":fileInfoPo.getFilename();
+		String modulFilePath = fileInfoPo.getModulFilePath()==null?"":fileInfoPo.getModulFilePath();
 
 		CommonsMultipartResolver multipartResolver = new CommonsMultipartResolver(req.getSession().getServletContext());
 		//请求中是否包含文件
@@ -62,20 +70,11 @@ public class Uploader {
 			// 获取multiRequest 中所有的文件名
 			Iterator<String> iter = multiRequest.getFileNames();
 			while (iter.hasNext()) {
-				String name = iter.next().toString();
-				// if (!this.fileParameterName.equals(name)) {
-				// continue;
-				// }
+				String name = iter.next();
 				MultipartFile file = multiRequest.getFile(name);
 
 				if (file != null && file.getSize() > 0) {
-					String original_filename = file.getOriginalFilename();
-					// String original_filename =
-					// files[this.fileParameterName]['originalFilename'];
-
-					//对文件进行校验
-					Integer validation = validateRequest(chunkNumber, chunkSize, totalSize, identifier, filename,
-							(int) file.getSize());
+					Integer validation = validateRequest(chunkNumber, chunkSize, totalSize, identifier, filename,(int) file.getSize());
 
 					//返回值为valid是 没有校验住,可以对文件进行保存
 					if (UploaderStatusEnum.FILE_VALID_PASS.getId().equals(validation)) {
@@ -91,11 +90,11 @@ public class Uploader {
 						int numberOfChunks = (int) Math.max(Math.floor(totalSize / (chunkSize * 1.0)), 1);
 
 						this.mergeChunk(currentTestChunk, chunkNumber, numberOfChunks,
-								chunkFilename, original_filename, identifier, listener,modulFilePath);
+								chunkFilename, filename, identifier, listener,modulFilePath);
 
 					} else {
 //						listener.callback(validation, filename, original_filename, identifier,"file");
-						listener.callback(validation, filename, original_filename,modulFilePath);
+						listener.callback(validation, null, null,modulFilePath);
 					}
 				} else {
 //					listener.callback("invalid_uploader_request", null, null, null, null);
@@ -205,15 +204,15 @@ public class Uploader {
 	 * @param currentTestChunk  服务器上传到第几块标志位
 	 * @param chunkNumber       前台传来当前上传到第几块
 	 * @param numberOfChunks    总块数
-	 * @param filename          文件绝对路径
-	 * @param original_filename 源文件名称
+	 * @param chunkFilename          文件绝对路径
+	 * @param fileName 源文件名称
 	 * @param identifier        md5加密串
 	 * @param listener          监听
 	 * @return
 	 */
 	@SuppressWarnings("")
-	private int mergeChunk(int currentTestChunk, int chunkNumber, int numberOfChunks, String filename,
-						   String original_filename, String identifier, UploadListener listener,String modulFilePath) {
+	private int mergeChunk(int currentTestChunk, int chunkNumber, int numberOfChunks, String chunkFilename,
+						   String fileName, String identifier, UploadListener listener,String modulFilePath) {
 		String cfile = getChunkFilename(currentTestChunk, identifier);
 		if (new File(cfile).exists()) {
 			currentTestChunk++;
@@ -224,19 +223,19 @@ public class Uploader {
 						log.info("模块:{}.分片文件开始合并",modulFilePath);
 						UploadOptions options = new UploadOptions();
 						File f = new File(this.temporaryFolder,
-								identifier + "." + FilenameUtils.getExtension(original_filename));
+								identifier + "." + FilenameUtils.getExtension(fileName));
 						options.listener = new UploadDoneListener() {
 							@Override
 							public void onError(Exception err) {
 //								listener.callback("invalid_uploader_request", f.getAbsolutePath(), original_filename, identifier, fileType);
-								listener.callback(UploaderStatusEnum.ERROR.getId(), f.getAbsolutePath(), original_filename,modulFilePath);
+								listener.callback(UploaderStatusEnum.ERROR.getId(), f.getAbsolutePath(), fileName,modulFilePath);
 								clean(identifier, null);
 							}
 
 							@Override
 							public void onDone() {
 //								listener.callback("done", f.getAbsolutePath(), original_filename, identifier, fileType);
-								listener.callback(UploaderStatusEnum.DONE.getId(), f.getAbsolutePath(), original_filename,modulFilePath);
+								listener.callback(UploaderStatusEnum.DONE.getId(), f.getAbsolutePath(), fileName,modulFilePath);
 								clean(identifier, null);
 							}
 						};
@@ -245,23 +244,23 @@ public class Uploader {
 					} catch (FileNotFoundException e) {
 						e.printStackTrace();
 //						listener.callback("invalid_uploader_request", filename, original_filename, identifier, fileType);
-						listener.callback(UploaderStatusEnum.ERROR.getId(), filename, original_filename,modulFilePath);
+						listener.callback(UploaderStatusEnum.ERROR.getId(), chunkFilename, fileName,modulFilePath);
 					} catch (IOException e) {
 						e.printStackTrace();
 //						listener.callback("invalid_uploader_request", filename, original_filename, identifier, fileType);
-						listener.callback(UploaderStatusEnum.ERROR.getId(), filename, original_filename,modulFilePath);
+						listener.callback(UploaderStatusEnum.ERROR.getId(), chunkFilename, fileName,modulFilePath);
 					}
 				} else {
 //					listener.callback("partly_done", filename, original_filename, identifier, fileType);
-					listener.callback(UploaderStatusEnum.PAR.getId(), filename, original_filename,modulFilePath);
+					listener.callback(UploaderStatusEnum.PAR.getId(), chunkFilename, fileName,modulFilePath);
 				}
 			} else {
-				return mergeChunk(currentTestChunk, chunkNumber, numberOfChunks, filename, original_filename,
+				return mergeChunk(currentTestChunk, chunkNumber, numberOfChunks, chunkFilename, fileName,
 						identifier, listener,modulFilePath);
 			}
 		} else {
 //			listener.callback("partly_done", filename, original_filename, identifier, fileType);
-			listener.callback(UploaderStatusEnum.PAR.getId(), filename, original_filename,modulFilePath);
+			listener.callback(UploaderStatusEnum.PAR.getId(), chunkFilename, fileName,modulFilePath);
 		}
 		return currentTestChunk;
 	}
