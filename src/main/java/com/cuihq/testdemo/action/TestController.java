@@ -23,7 +23,7 @@ public class TestController{
 	@RequestMapping(path = "/upload", method = RequestMethod.POST)
 	public void upload(HttpServletRequest request, HttpServletResponse response, FileInfoPo fileInfoPo){
 		try{
-			uploadService.post(request,fileInfoPo, new Uploader.UploadListener() {
+			uploadService.fdfs(request,fileInfoPo, new Uploader.UploadListener() {
 				@Override
 				public void callback(Integer status, String absolutePath, String fileName, String modulFilePath) {
 					this.success(response,status,absolutePath,fileName,modulFilePath);

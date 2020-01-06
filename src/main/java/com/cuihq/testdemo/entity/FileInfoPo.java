@@ -1,6 +1,8 @@
 package com.cuihq.testdemo.entity;
 
+import com.github.tobato.fastdfs.domain.fdfs.StorePath;
 import lombok.Data;
+import org.springframework.web.multipart.MultipartFile;
 
 @Data
 public class FileInfoPo {
@@ -28,4 +30,5 @@ public class FileInfoPo {
 	 * 文件位置
 	 */
 	private String modulFilePath;
+	private MultipartFile file;
 }

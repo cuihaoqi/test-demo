@@ -2,8 +2,12 @@ package com.cuihq.testdemo.service;
 
 import com.cuihq.testdemo.entity.FileInfoPo;
 import com.cuihq.testdemo.entity.UploaderStatusEnum;
+import com.github.tobato.fastdfs.domain.fdfs.StorePath;
+import com.github.tobato.fastdfs.service.AppendFileStorageClient;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.FilenameUtils;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.multipart.MultipartHttpServletRequest;
@@ -12,6 +16,8 @@ import org.springframework.web.multipart.commons.CommonsMultipartResolver;
 import javax.servlet.http.HttpServletRequest;
 import java.io.*;
 import java.util.Iterator;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 //https://github.com/simple-uploader/Uploader/blob/develop/samples/Node.js/uploader-node.js
 /**
@@ -26,11 +32,17 @@ public class Uploader {
 	 * 临时文件夹
 	 */
 	private String temporaryFolder;
+	private final String DEFAULT_GROUP = "group1";
+	private String HEADER = "http://pocketbook.document.jingcaiwang.cn/";
+	//key:md5 value:path
+	private Map<String, StorePath> md5Path = new ConcurrentHashMap<>();
 	/**
 	 * 最大文件大小
 	 */
 	@Value("${upload.maxFileSize}")
 	private Integer maxFileSize;
+	@Autowired
+	protected AppendFileStorageClient storageClient;
 
 	public Uploader(String temporaryFolder) {
 		this.temporaryFolder = temporaryFolder;
@@ -39,6 +51,52 @@ public class Uploader {
 			file.mkdirs();
 		}
 	}
+
+	public void fdfs(HttpServletRequest req, FileInfoPo fileInfoPo, UploadListener listener) throws IllegalStateException, IOException {
+		Integer chunkNumber = fileInfoPo.getChunkNumber()==null?0:fileInfoPo.getChunkNumber();
+		Integer chunkSize = fileInfoPo.getChunkSize()==null?0:fileInfoPo.getChunkSize();
+		Integer totalSize = fileInfoPo.getTotalSize()==null?0:fileInfoPo.getTotalSize();
+		String identifier = fileInfoPo.getIdentifier()==null?"":fileInfoPo.getIdentifier();
+		String fileName = fileInfoPo.getFilename()==null?"":fileInfoPo.getFilename();
+		String modulFilePath = fileInfoPo.getModulFilePath()==null?"":fileInfoPo.getModulFilePath();
+		MultipartFile file = fileInfoPo.getFile();
+		if (file != null && file.getSize() > 0) {
+			Integer validation = validateRequest(chunkNumber, chunkSize, totalSize, identifier, fileName,(int) file.getSize());
+			//返回值为valid是 没有校验住,可以对文件进行保存
+			if (UploaderStatusEnum.FILE_VALID_PASS.getId().equals(validation)) {
+				int totalNumber = (int) Math.max(Math.floor(totalSize / (chunkSize * 1.0)), 1);
+				StorePath path = md5Path.get(identifier);
+				//第一次上传
+				if(chunkNumber<=1){
+					path = storageClient.uploadAppenderFile(DEFAULT_GROUP, file.getInputStream(),
+							file.getSize(), FilenameUtils.getExtension(fileName));
+					md5Path.put(identifier, path);
+					//return 部分成功
+					listener.callback(UploaderStatusEnum.PAR.getId(), HEADER+path.getFullPath(), fileName,modulFilePath);
+				}else if(chunkNumber < totalNumber) {
+					storageClient.appendFile(path.getGroup(), path.getPath(), file.getInputStream(),
+							file.getSize());
+					//return 部分成功
+					listener.callback(UploaderStatusEnum.PAR.getId(), HEADER+path.getFullPath(), fileName,modulFilePath);
+				}else {
+					storageClient.appendFile(path.getGroup(), path.getPath(), file.getInputStream(),
+							file.getSize());
+					//return 全部成功
+					listener.callback(UploaderStatusEnum.DONE.getId(), HEADER+path.getFullPath(), fileName,modulFilePath);
+				}
+			}else {
+				//返回校验码
+				listener.callback(validation, null, null,modulFilePath);
+			}
+		}else{
+			//返回空文件
+			listener.callback(UploaderStatusEnum.FILEVALID_EMPTY.getId(), null, null,modulFilePath);
+		}
+	}
+
+
+
+
 	/**
 	 * @title 上传文件主方法
 	 * @author cuihq
