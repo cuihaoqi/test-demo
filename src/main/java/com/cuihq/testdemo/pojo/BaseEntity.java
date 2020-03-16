@@ -14,11 +14,11 @@ public class BaseEntity {
 	 */
 	public <T> String getComment(SFunction<T, ?> column){
 		String fieldName = resovse(column.getImplMethodName());
-		Field f = getField(this, this.getClass(), fieldName);
+		Field f = getField(this.getClass(), fieldName);
 		CommentTarget commentTarget = f.getAnnotation(CommentTarget.class);
 		return commentTarget==null ? "": commentTarget.value();
 	}
-	private static Field getField(Object obj, Class<?> c, String FieldName) {
+	private static Field getField( Class<?> c, String FieldName) {
 		try {
 			Field f = c.getDeclaredField(FieldName);
 			return f;
@@ -27,7 +27,7 @@ public class BaseEntity {
 				return null;
 			}
 			else{
-				return getField(obj, c.getSuperclass(), FieldName);
+				return getField( c.getSuperclass(), FieldName);
 			}
 		} catch (Exception ex) {
 			return null;

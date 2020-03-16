@@ -13,6 +13,13 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 public class JsonUtils {
+	/**
+	 * 需要继承自BaseEntity接口的非空校验
+	 * @param obj
+	 * @param functions
+	 * @param <T>
+	 * @throws Exception
+	 */
 	public static <T extends BaseEntity> void validEmpty(T obj, SFunction<T, ?>... functions) throws Exception {
 		String msg = Stream.of(functions)
 				.filter(x -> isAnyoneEmpty(x.apply((T) obj)))
@@ -21,7 +28,57 @@ public class JsonUtils {
 		System.out.println(msg);
 
 	}
-	public static <T extends BaseEntity> void Object2List(List<T> list, SFunction<T, ?>... functions){
+
+	/**
+	 * 不需要继承接口的非空校验
+	 * @param obj
+	 * @param functions
+	 * @param <T>
+	 * @throws Exception
+	 */
+	public static <T extends Object> void validEmpty1(Object obj, SFunction<T, ?>... functions) throws Exception {
+		String msg = Stream.of(functions)
+				.filter(x -> isAnyoneEmpty(x.apply((T) obj)))
+				.map(fun -> String.format("【%s】不能为空", getComment(fun)))
+				.collect(Collectors.joining(","));
+		System.out.println(msg);
+	}
+	private static <T> String getComment(SFunction<T, ?> column){
+		String fieldName = resovse(column.getImplMethodName());
+		String implClass = column.getImplClass();
+		Field f = null;
+		try {
+			f = getField(Class.forName(implClass), fieldName);
+		} catch (ClassNotFoundException e) {
+			e.printStackTrace();
+		}
+		CommentTarget commentTarget = f.getAnnotation(CommentTarget.class);
+		return commentTarget==null ? "": commentTarget.value();
+	}
+	private static Field getField( Class<?> c, String FieldName) {
+		try {
+			Field f = c.getDeclaredField(FieldName);
+			return f;
+		} catch (NoSuchFieldException e) {
+			if (c.getSuperclass() == null){
+				return null;
+			}
+			else{
+				return getField( c.getSuperclass(), FieldName);
+			}
+		} catch (Exception ex) {
+			return null;
+		}
+	}
+
+
+	/**
+	 * 类的按需返回
+	 * @param list
+	 * @param functions
+	 * @param <T>
+	 */
+	public static <T extends Object> void Object2List(List<T> list, SFunction<T, ?>... functions){
 		ArrayList result = new ArrayList();
 		Supplier<Map> mapSupplier = LinkedHashMap::new;
 		for(T obj:list){
@@ -36,6 +93,10 @@ public class JsonUtils {
 		}
 		System.out.println(result);
 	}
+
+
+
+
 
 
 	private static boolean isAnyoneEmpty(Object obj) {

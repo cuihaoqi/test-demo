@@ -10,10 +10,13 @@ import static org.junit.Assert.*;
 public class FunctionTest {
 	@Test
 	public void fu01() throws Exception {
-//		User user = new User(1L,"崔昊琦");
 		User user = new User(1L,"");
-//		check1(user::getId,user::getName);
 		JsonUtils.validEmpty(user,User::getId,User::getName);
+	}
+	@Test
+	public void fu03() throws Exception {
+		User user = new User(1L,"");
+		JsonUtils.validEmpty1(user,User::getId,User::getName);
 	}
 
 	@Test
@@ -26,7 +29,11 @@ public class FunctionTest {
 		JsonUtils.Object2List(Arrays.asList(user1,user2,user3,user4),User::getName);
 	}
 
-
+	@Test
+	public void fu04() throws Exception {
+		User user = new User(1L,"");
+		check1(user::getId,user::getName);
+	}
 	public static void check1(Function... functions) {
 		for (Function fun : functions) {
 			System.out.println("传入的实现类：" + fun.getImplClass());

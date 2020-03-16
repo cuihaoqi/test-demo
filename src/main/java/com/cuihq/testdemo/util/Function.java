@@ -21,6 +21,7 @@ public interface Function<T,R> extends Serializable {
 
 	default String getImplClass() {
 		try {
+			SerializedLambda serializedLambda = getSerializedLambda();
 			return getSerializedLambda().getImplClass();
 		} catch (Exception e) {
 			return null;

@@ -21,7 +21,9 @@ public interface SFunction<T,R> extends Serializable {
 	default String getImplClass() {
 		try {
 			SerializedLambda serializedLambda = getSerializedLambda();
-			return getSerializedLambda().getImplClass();
+			String implClass = getSerializedLambda().getImplClass();
+			String result = implClass.replace("/", ".");
+			return result;
 		} catch (Exception e) {
 			return null;
 		}
