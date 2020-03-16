@@ -41,6 +41,9 @@ public class HashMap<K,V> implements Map<K,V>{
 
 	@Override
 	public void put(K k, V v) {
+		if(size > cap*loadFactor){
+			//扩容
+		}
 		//根据key，获取在map中Node数组的下标
 		//获取到数组对应元素
 		//如果没有元素，则直接添加
