@@ -45,6 +45,15 @@ public class MapTest {
 		System.out.println(test2);
 
 	}
+	@Test
+	public void fu03(){
+		int i = 1;
+		String s = String.valueOf(i);
+		System.out.println(s);
+		Integer ii = null;
+		String s1 = String.valueOf(ii);
+		System.out.println(s1);
+	}
 }
 
 
