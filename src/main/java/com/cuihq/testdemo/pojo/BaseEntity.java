@@ -6,6 +6,9 @@ import org.apache.commons.lang3.StringUtils;
 
 import java.lang.reflect.Field;
 
+/**
+ * 作废,不再使用
+ */
 public class BaseEntity {
 	/**
 	 * 获取字段的备注

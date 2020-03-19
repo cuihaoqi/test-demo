@@ -1,102 +1,94 @@
 package com.cuihq.testdemo.util;
 
-import com.cuihq.testdemo.annotation.CommentTarget;
-import com.cuihq.testdemo.pojo.BaseEntity;
-import com.cuihq.testdemo.pojo.User;
-import org.apache.commons.lang3.StringUtils;
-
+import java.io.Serializable;
 import java.lang.invoke.SerializedLambda;
-import java.lang.reflect.Field;
 import java.util.*;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 public class JsonUtils {
+
+	/**
+	 * 函数接口
+	 * 传入返回载体map，泛型对象
+	 * @param <T>
+	 */
+	@FunctionalInterface
+	public interface AfterSet<T> extends Serializable {
+		void after(Map<String, Object> row, T baseModel);
+	}
+
 	/**
 	 * 需要继承自BaseEntity接口的非空校验
-	 * @param obj
-	 * @param functions
-	 * @param <T>
 	 * @throws Exception
 	 */
-	public static <T extends BaseEntity> void validEmpty(T obj, SFunction<T, ?>... functions) throws Exception {
+/*	public static <T extends BaseEntity> void validEmpty(T obj, SFunction<T, ?>... functions) throws Exception {
 		String msg = Stream.of(functions)
 				.filter(x -> isAnyoneEmpty(x.apply((T) obj)))
 				.map(fun -> String.format("【%s】不能为空", obj.getComment(fun)))
 				.collect(Collectors.joining(","));
 		System.out.println(msg);
 
-	}
+	}*/
 
 	/**
 	 * 不需要继承接口的非空校验
-	 * @param obj
-	 * @param functions
-	 * @param <T>
+	 * @param obj 需要被校验的对象
+	 * @param functions 对象需要被校验的方法
+	 * @param <T> 校验对应的泛型
 	 * @throws Exception
 	 */
-	public static <T extends Object> void validEmpty1(Object obj, SFunction<T, ?>... functions) throws Exception {
+	static <T> void validEmpty(Object obj, SFunction<T, ?>... functions){
 		String msg = Stream.of(functions)
 				.filter(x -> isAnyoneEmpty(x.apply((T) obj)))
-				.map(fun -> String.format("【%s】不能为空", getComment(fun)))
+				.map(fun -> String.format("【%s】不能为空", fun.getCommentValue()))
 				.collect(Collectors.joining(","));
 		System.out.println(msg);
-	}
-	private static <T> String getComment(SFunction<T, ?> column){
-		String fieldName = resovse(column.getImplMethodName());
-		String implClass = column.getImplClass();
-		Field f = null;
-		try {
-			f = getField(Class.forName(implClass), fieldName);
-		} catch (ClassNotFoundException e) {
-			e.printStackTrace();
-		}
-		CommentTarget commentTarget = f.getAnnotation(CommentTarget.class);
-		return commentTarget==null ? "": commentTarget.value();
-	}
-	private static Field getField( Class<?> c, String FieldName) {
-		try {
-			Field f = c.getDeclaredField(FieldName);
-			return f;
-		} catch (NoSuchFieldException e) {
-			if (c.getSuperclass() == null){
-				return null;
-			}
-			else{
-				return getField( c.getSuperclass(), FieldName);
-			}
-		} catch (Exception ex) {
-			return null;
-		}
 	}
 
 
 	/**
-	 * 类的按需返回
-	 * @param list
-	 * @param functions
-	 * @param <T>
+	 * list<T> ->list<Map> 类的按需返回
+	 * @param list 数据集合
+	 * @param set 自定义的返回内容
+	 * @param functions 需要返回的字段
 	 */
-	public static <T extends Object> void Object2List(List<T> list, SFunction<T, ?>... functions){
-		ArrayList result = new ArrayList();
-		Supplier<Map> mapSupplier = LinkedHashMap::new;
+	static <T> void Object2List(List<T> list,AfterSet<T> set, SFunction<T, ?>... functions){
+		ArrayList<Map<String, Object>> result = new ArrayList<>();
+		Supplier<Map<String, Object>> mapSupplier = LinkedHashMap::new;
 		for(T obj:list){
-			Map map = mapSupplier.get();
+			Map<String, Object> map = mapSupplier.get();
 			for (SFunction fun : functions) {
-				System.out.println("传入的实现类：" + fun.getImplClass());
-				System.out.println("传入的方法名：" + fun.getImplMethodName());
-				String fileName = resovse(fun.getImplMethodName());
+				String fileName = fun.getFieldName();
 				map.put(fileName,fun.apply(obj));
 			}
 			result.add(map);
+			//这里使用返回的map和泛型的obj作为参数，具体方法在传入的时候指定
+			if(set!=null){
+				set.after(map,obj);
+			}
 		}
 		System.out.println(result);
 	}
 
-
-
-
+	/**
+	 * Object->Map 类的按需返回
+	 * @param obj 需要转换的一个对象
+	 * @param set 自定义的返回内容
+	 * @param functions 需要返回的字段
+	 */
+	static <T> void Object2Map(T obj,AfterSet<T> set, SFunction<T, ?>... functions){
+		Map<String, Object> result = new LinkedHashMap<>();
+		for (SFunction fun : functions) {
+			String fileName = fun.getFieldName();
+			result.put(fileName,fun.apply(obj));
+			if(set!=null){
+				set.after(result,obj);
+			}
+		}
+		System.out.println(result);
+	}
 
 
 	private static boolean isAnyoneEmpty(Object obj) {
@@ -118,13 +110,11 @@ public class JsonUtils {
 		return false;
 	}
 
-	private static String resovse(String key){
-		if(StringUtils.isBlank(key)){
-			return key;
+	public static <T> void testConsumer(Object obj, Consumer<T>... functions) throws Exception {
+		for (Consumer consumer:functions){
+			consumer.accept(obj);
+			SerializedLambda serializedLambda = consumer.getSerializedLambda();
+			System.out.println(serializedLambda);
 		}
-		String valueTmp = StringUtils.removeStartIgnoreCase(key, "get");
-		String valuePre = valueTmp.substring(0, 1);
-		String valueSux = valueTmp.substring(1);
-		return valuePre.toLowerCase() + valueSux;
 	}
 }

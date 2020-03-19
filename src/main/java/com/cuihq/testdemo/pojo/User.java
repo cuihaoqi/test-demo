@@ -13,4 +13,5 @@ public class User extends BaseEntity{
 	private Long id;
 	@CommentTarget("自定义name")
 	private String name;
+
 }
